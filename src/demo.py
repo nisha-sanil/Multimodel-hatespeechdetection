@@ -9,6 +9,7 @@ import os
 from utils import get_device
 from precompute_features import get_text_embeddings, get_image_embeddings, get_aux_scores
 from fusion_train import FusionMLP
+from utils import TextDataset
 
 from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
 from torchvision.models import resnet50, ResNet50_Weights
@@ -58,7 +59,7 @@ def load_models(device, text_model_path, sarcasm_model_path, emotion_model_path,
     }
     return models
 
-def predict(text, image_path, models, device):
+def predict_fusion(text, image_path, models, device):
     """Make a prediction on a single instance."""
     # 1. Extract features
     text_model, text_tokenizer = models['text']
@@ -91,6 +92,33 @@ def predict(text, image_path, models, device):
     label = "HATE" if predicted_class.item() == 1 else "NOT HATE"
     return label, confidence.item()
 
+def predict_text_only(text, text_model_path, device):
+    """Make a prediction using only the text model."""
+    tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+    model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=2)
+    model.load_state_dict(torch.load(text_model_path, map_location=device))
+    model.to(device)
+    model.eval()
+
+    encoding = tokenizer.encode_plus(
+        text,
+        add_special_tokens=True,
+        max_length=128,
+        return_token_type_ids=False,
+        padding='max_length',
+        truncation=True,
+        return_attention_mask=True,
+        return_tensors='pt',
+    )
+
+    with torch.no_grad():
+        outputs = model(input_ids=encoding['input_ids'].to(device), attention_mask=encoding['attention_mask'].to(device))
+        probabilities = F.softmax(outputs.logits, dim=1)
+        confidence, predicted_class = torch.max(probabilities, 1)
+
+    label = "HATE" if predicted_class.item() == 1 else "NOT HATE"
+    return label, confidence.item()
+
 def main():
     parser = argparse.ArgumentParser(description="Hate Speech Detection Demo")
     parser.add_argument("--text", type=str, required=True, help="Input text.")
@@ -99,23 +127,32 @@ def main():
     parser.add_argument('--sarcasm_model_path', default='models/sarcasm_model.joblib')
     parser.add_argument('--emotion_model_path', default='models/emotion_model.joblib')
     parser.add_argument('--fusion_model_path', default='models/fusion_model.bin')
+    parser.add_argument('--mode', type=str, default='fusion', choices=['fusion', 'text_only'], help='Run in full fusion mode or text-only mode.')
 
     args = parser.parse_args()
 
     device = get_device()
     print(f"Using device: {device}")
 
-    try:
-        models = load_models(device,
-                             text_model_path=args.text_model_path,
-                             sarcasm_model_path=args.sarcasm_model_path,
-                             emotion_model_path=args.emotion_model_path,
-                             fusion_model_path=args.fusion_model_path)
-    except FileNotFoundError as e:
-        print(f"Error loading models: {e}. Please run the training scripts first.")
-        return
+    if args.mode == 'fusion':
+        try:
+            models = load_models(device,
+                                 text_model_path=args.text_model_path,
+                                 sarcasm_model_path=args.sarcasm_model_path,
+                                 emotion_model_path=args.emotion_model_path,
+                                 fusion_model_path=args.fusion_model_path)
+        except FileNotFoundError as e:
+            print(f"Error loading models for fusion mode: {e}. Please ensure all models exist and paths are correct.")
+            return
+        label, confidence = predict_fusion(args.text, args.image_path, models, device)
+    
+    elif args.mode == 'text_only':
+        try:
+            label, confidence = predict_text_only(args.text, args.text_model_path, device)
+        except FileNotFoundError as e:
+            print(f"Error loading text model: {e}. Please ensure the text model exists at the specified path.")
+            return
 
-    label, confidence = predict(args.text, args.image_path, models, device)
 
     print("\n--- Prediction ---")
     print(f"Label: {label}")

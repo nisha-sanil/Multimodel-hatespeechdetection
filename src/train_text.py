@@ -106,6 +106,10 @@ def main(args):
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=total_steps)
     loss_fn = torch.nn.CrossEntropyLoss().to(device)
 
+    best_val_loss = float('inf')
+    early_stopping_patience = 2
+    early_stopping_counter = 0
+
     for epoch in range(EPOCHS):
         print(f'Epoch {epoch + 1}/{EPOCHS}')
         train_acc, train_loss = train_epoch(model, train_loader, loss_fn, optimizer, device, scheduler, len(train_dataset))
@@ -114,9 +118,17 @@ def main(args):
         val_acc, val_loss = eval_model(model, val_loader, loss_fn, device, len(val_dataset))
         print(f'Val loss {val_loss:.4f} accuracy {val_acc:.4f}')
 
-    os.makedirs(os.path.dirname(args.model_save_path), exist_ok=True)
-    torch.save(model.state_dict(), args.model_save_path)
-    print(f"Text model saved to {args.model_save_path}")
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            os.makedirs(os.path.dirname(args.model_save_path), exist_ok=True)
+            torch.save(model.state_dict(), args.model_save_path)
+            print(f"Best model saved to {args.model_save_path}")
+            early_stopping_counter = 0
+        else:
+            early_stopping_counter += 1
+            if early_stopping_counter >= early_stopping_patience:
+                print("Early stopping triggered.")
+                break
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
