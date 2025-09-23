@@ -6,6 +6,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import argparse
 
 from utils import set_seed, get_device
 
@@ -50,7 +51,7 @@ def plot_history(history, save_path='figures/'):
     plt.savefig(os.path.join(save_path, 'fusion_training_history.png'))
     print(f"Training history plot saved to {save_path}")
 
-def main():
+def main(args):
     set_seed()
     device = get_device()
     print(f"Using device: {device}")
@@ -59,7 +60,6 @@ def main():
     EPOCHS = 20
     BATCH_SIZE = 16
     LEARNING_RATE = 1e-3
-    MODEL_SAVE_PATH = 'models/fusion_model.bin'
 
     # Load precomputed features
     text_features = np.load('features/text_features.npy')
@@ -145,10 +145,14 @@ def main():
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), MODEL_SAVE_PATH)
-            print(f"Best model saved to {MODEL_SAVE_PATH}")
+            os.makedirs(os.path.dirname(args.model_save_path), exist_ok=True)
+            torch.save(model.state_dict(), args.model_save_path)
+            print(f"Best model saved to {args.model_save_path}")
 
     plot_history(history)
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model_save_path', type=str, default='models/fusion_model.bin', help='Path to save the trained fusion model.')
+    args = parser.parse_args()
+    main(args)

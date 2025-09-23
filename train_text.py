@@ -73,7 +73,6 @@ def main(args):
 
     # Config
     MODEL_NAME = 'distilbert-base-uncased'
-    MODEL_SAVE_PATH = 'models/text_model.bin'
     MAX_LEN = 128
     BATCH_SIZE = 16 if device.type == 'cuda' else 4
     EPOCHS = 3
@@ -114,12 +113,13 @@ def main(args):
         val_acc, val_loss = eval_model(model, val_loader, loss_fn, device, len(val_dataset))
         print(f'Val loss {val_loss:.4f} accuracy {val_acc:.4f}')
 
-    os.makedirs(os.path.dirname(MODEL_SAVE_PATH), exist_ok=True)
-    torch.save(model.state_dict(), MODEL_SAVE_PATH)
-    print(f"Text model saved to {MODEL_SAVE_PATH}")
+    os.makedirs(os.path.dirname(args.model_save_path), exist_ok=True)
+    torch.save(model.state_dict(), args.model_save_path)
+    print(f"Text model saved to {args.model_save_path}")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_path', type=str, default='data/olid_sample.csv', help='Path to the OLID training data file.')
+    parser.add_argument('--model_save_path', type=str, default='models/text_model.bin', help='Path to save the trained text model.')
     args = parser.parse_args()
     main(args)
