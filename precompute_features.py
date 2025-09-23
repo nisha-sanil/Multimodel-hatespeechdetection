@@ -89,7 +89,7 @@ def main(args):
 
     # --- 1. Text Features ---
     print("Loading text model...")
-    text_model_path = 'models/text_model.bin'
+    text_model_path = args.text_model_path
     text_tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
     text_model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=2)
     text_model.load_state_dict(torch.load(text_model_path, map_location=device))
@@ -116,8 +116,8 @@ def main(args):
 
     # --- 3. Auxiliary Features ---
     print("Loading auxiliary models...")
-    sarcasm_model = joblib.load('models/sarcasm_model.joblib')
-    emotion_model = joblib.load('models/emotion_model.joblib')
+    sarcasm_model = joblib.load(args.sarcasm_model_path)
+    emotion_model = joblib.load(args.emotion_model_path)
 
     sarcasm_scores, emotion_scores = get_aux_scores(texts, sarcasm_model, emotion_model)
     np.save('features/sarcasm_features.npy', sarcasm_scores)
@@ -139,5 +139,8 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_path', type=str, default='data/hateful_memes_sample.csv', help='Path to the hateful memes data file.')
+    parser.add_argument('--text_model_path', type=str, default='models/text_model.bin')
+    parser.add_argument('--sarcasm_model_path', type=str, default='models/sarcasm_model.joblib')
+    parser.add_argument('--emotion_model_path', type=str, default='models/emotion_model.joblib')
     args = parser.parse_args()
     main(args)

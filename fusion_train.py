@@ -60,7 +60,6 @@ def main(args):
     EPOCHS = 20
     BATCH_SIZE = 16
     LEARNING_RATE = 1e-3
-
     # Load precomputed features
     text_features = np.load('features/text_features.npy')
     image_features = np.load('features/image_features.npy')

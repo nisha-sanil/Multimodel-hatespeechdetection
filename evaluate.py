@@ -82,15 +82,14 @@ def main(args):
     elif args.model_type == 'text':
         print("--- Evaluating Text-Only Model ---")
         MODEL_NAME = 'distilbert-base-uncased'
-        MODEL_PATH = 'models/text_model.bin'
         
         try:
             model = DistilBertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2)
-            model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+            model.load_state_dict(torch.load(args.model_path, map_location=device))
             model.to(device)
             tokenizer = DistilBertTokenizer.from_pretrained(MODEL_NAME)
         except FileNotFoundError:
-            print(f"Text model not found at {MODEL_PATH}. Please run train_text.py first.")
+            print(f"Text model not found at {args.model_path}. Please run train_text.py first.")
             return
 
         print(f"Loading evaluation data from {args.data_path}")
@@ -132,5 +131,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_type', type=str, default='fusion', choices=['fusion', 'text'], help='Type of model to evaluate.')
     parser.add_argument('--data_path', type=str, default='data/olid_sample.csv', help='Path to the evaluation data file (used for text model evaluation).')
+    parser.add_argument('--model_path', type=str, default='models/text_model.bin', help='Path to the model file to evaluate (used for text model).')
     args = parser.parse_args()
     main(args)

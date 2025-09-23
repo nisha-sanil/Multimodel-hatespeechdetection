@@ -3,7 +3,6 @@ import torch
 import numpy as np
 from PIL import Image
 import os
-import io
 
 from src.utils import get_device
 from src.demo import load_models, predict
@@ -11,15 +10,26 @@ from src.demo import load_models, predict
 # --- Page Config ---
 st.set_page_config(page_title="Multimodal Hate Speech Detection", layout="wide")
 
+# --- Constants for Model Paths ---
+# This makes it easy to configure which models the app uses.
+TEXT_MODEL_PATH = 'models/text_model.bin'
+SARCASM_MODEL_PATH = 'models/sarcasm_model.joblib'
+EMOTION_MODEL_PATH = 'models/emotion_model.joblib'
+FUSION_MODEL_PATH = 'models/fusion_model.bin'
+
 @st.cache_resource
 def cached_load_models():
     """Load and cache the models to avoid reloading on every run."""
     device = get_device()
     try:
-        models = load_models(device)
+        models = load_models(device,
+                             text_model_path=TEXT_MODEL_PATH,
+                             sarcasm_model_path=SARCASM_MODEL_PATH,
+                             emotion_model_path=EMOTION_MODEL_PATH,
+                             fusion_model_path=FUSION_MODEL_PATH)
         return models, device
     except FileNotFoundError as e:
-        st.error(f"Model file not found: {e}. Please ensure all models exist in the 'models/' directory. Run the training scripts (`train_text.py`, `train_aux.py`, `fusion_train.py`) to generate them.")
+        st.error(f"Model file not found: {e}. Please ensure all models exist in the 'models/' directory. Run the training scripts to generate them.")
         return None, None
 
 models, device = cached_load_models()
@@ -47,11 +57,9 @@ with col1:
     temp_image_path = None
 
     if uploaded_file is not None:
-        # To display the image, we can use st.image
         image = Image.open(uploaded_file)
         st.image(image, caption="Uploaded Meme", use_column_width=True)
         
-        # To process the image, we need to save it temporarily
         temp_dir = "temp_images"
         os.makedirs(temp_dir, exist_ok=True)
         temp_image_path = os.path.join(temp_dir, uploaded_file.name)
@@ -77,7 +85,6 @@ with col2:
                     
                     st.metric(label="Confidence Score", value=f"{confidence:.4f}")
 
-                    # Display inferred auxiliary features
                     st.markdown("---")
                     st.markdown("**Inferred Auxiliary Cues:**")
                     sarcasm_prob = models['sarcasm'].predict_proba([input_text])[0, 1]
@@ -85,7 +92,6 @@ with col2:
                     st.write(f"Sarcasm Probability: {sarcasm_prob:.2f}")
                     st.write(f"Predicted Emotion: **{emotion_pred.capitalize()}**")
             finally:
-                # Clean up the temporary file after prediction
                 if temp_image_path and os.path.exists(temp_image_path):
                     try:
                         os.remove(temp_image_path)

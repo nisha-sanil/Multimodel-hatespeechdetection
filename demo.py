@@ -14,12 +14,12 @@ from transformers import DistilBertTokenizer, DistilBertForSequenceClassificatio
 from torchvision.models import resnet50, ResNet50_Weights
 import torchvision.transforms as transforms
 
-def load_models(device):
+def load_models(device, text_model_path, sarcasm_model_path, emotion_model_path, fusion_model_path):
     """Load all necessary models for inference."""
     # Text model
     text_tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
     text_model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=2)
-    text_model.load_state_dict(torch.load('models/text_model.bin', map_location=device))
+    text_model.load_state_dict(torch.load(text_model_path, map_location=device))
     text_model.to(device)
 
     # Image model
@@ -33,8 +33,8 @@ def load_models(device):
     ])
 
     # Aux models
-    sarcasm_model = joblib.load('models/sarcasm_model.joblib')
-    emotion_model = joblib.load('models/emotion_model.joblib')
+    sarcasm_model = joblib.load(sarcasm_model_path)
+    emotion_model = joblib.load(emotion_model_path)
 
     # Fusion model
     # Define feature dimensions based on the models, not cached .npy files.
@@ -46,7 +46,7 @@ def load_models(device):
     input_dim = text_dim + img_dim + sarcasm_dim + emotion_dim
 
     fusion_model = FusionMLP(input_dim=input_dim)
-    fusion_model.load_state_dict(torch.load('models/fusion_model.bin', map_location=device))
+    fusion_model.load_state_dict(torch.load(fusion_model_path, map_location=device))
     fusion_model.to(device)
 
     models = {
@@ -95,7 +95,10 @@ def main():
     parser = argparse.ArgumentParser(description="Hate Speech Detection Demo")
     parser.add_argument("--text", type=str, required=True, help="Input text.")
     parser.add_argument("--image_path", type=str, default=None, help="Path to the input image.")
-    # Sarcasm and emotion are now inferred from the text by the aux models
+    parser.add_argument('--text_model_path', default='models/text_model.bin')
+    parser.add_argument('--sarcasm_model_path', default='models/sarcasm_model.joblib')
+    parser.add_argument('--emotion_model_path', default='models/emotion_model.joblib')
+    parser.add_argument('--fusion_model_path', default='models/fusion_model.bin')
 
     args = parser.parse_args()
 
@@ -103,7 +106,11 @@ def main():
     print(f"Using device: {device}")
 
     try:
-        models = load_models(device)
+        models = load_models(device,
+                             text_model_path=args.text_model_path,
+                             sarcasm_model_path=args.sarcasm_model_path,
+                             emotion_model_path=args.emotion_model_path,
+                             fusion_model_path=args.fusion_model_path)
     except FileNotFoundError as e:
         print(f"Error loading models: {e}. Please run the training scripts first.")
         return
