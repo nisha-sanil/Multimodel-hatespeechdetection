@@ -14,7 +14,7 @@ The system is designed to be trainable on a Colab GPU and runnable for inference
 │   ├── isarcasm_sample.csv     # Sarcasm detection data
 │   ├── goemotions_sample.csv   # Emotion detection data
 │   ├── hateful_memes_sample.csv # Hateful memes data (text + image paths)
-│   └── memes/                  # Directory for meme images (e.g., 01234.png)
+│   └── img/                    # Directory for meme images (e.g., 01234.png)
 ├── src/
 │   ├── train_text.py           # Fine-tunes DistilBERT on OLID
 │   ├── train_aux.py            # Trains sarcasm & emotion classifiers
@@ -55,7 +55,7 @@ The system is designed to be trainable on a Colab GPU and runnable for inference
       - iSarcasm
       - GoEmotions
       - Hateful Memes Challenge
-    - Place the meme images from the Hateful Memes dataset into the `data/memes/` directory.
+    - Place the `img` folder from the Hateful Memes dataset into the `data/` directory.
 
 ## 🚀 Training & Evaluation Workflow
 
@@ -63,20 +63,23 @@ Execute the scripts in the following order. The models and features will be save
 
 1.  **Train Text Model:**
     Fine-tune DistilBERT for hate speech classification on the text dataset.
+    (Using the full OLID dataset)
     ```bash
-    python src/train_text.py
+    python src/train_text.py --data_path data/olid-training-v1.0.tsv
     ```
 
 2.  **Train Auxiliary Models:**
     Train classifiers for sarcasm and emotion.
+    (Using the full sarcasm and emotion datasets)
     ```bash
-    python src/train_aux.py
+    python src/train_aux.py --sarcasm_path data/train-balanced-sarcasm.csv --emotion_path data/go_emotions_dataset.csv
     ```
 
 3.  **Precompute All Features:**
     Generate and cache embeddings for text, images, sarcasm, and emotion. This step is crucial for efficient fusion model training.
+    (Using the full Hateful Memes dataset)
     ```bash
-    python src/precompute_features.py
+    python src/precompute_features.py --data_path data/train.jsonl
     ```
 
 4.  **Train Fusion Model:**
@@ -87,8 +90,13 @@ Execute the scripts in the following order. The models and features will be save
 
 5.  **Evaluate Models:**
     Generate classification reports, confusion matrices, and performance comparisons.
+    To evaluate just the text model:
     ```bash
-    python src/evaluate.py
+    python src/evaluate.py --model_type text --data_path data/olid-training-v1.0.tsv
+    ```
+    To evaluate the final fusion model (after all training is complete):
+    ```bash
+    python src/evaluate.py --model_type fusion
     ```
 
 ## ✅ Usage
@@ -97,7 +105,7 @@ Execute the scripts in the following order. The models and features will be save
 
 Run a prediction on a single instance using the CLI.
 ```bash
-python src/demo.py --text "this is a test" --image_path "data/memes/12345.png"
+python src/demo.py --text "this is a test" --image_path "data/img/12345.png"
 ```
 
 ### Streamlit Web App

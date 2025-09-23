@@ -19,24 +19,40 @@ def get_device():
 
 def load_olid_data(file_path):
     """Load OLID dataset and map labels."""
-    df = pd.read_csv(file_path)
+    # The original dataset is a tab-separated file (.tsv)
+    df = pd.read_csv(file_path, sep='\t')
     df['label'] = df['subtask_a'].apply(lambda x: 1 if x == 'OFF' else 0)
     return df[['tweet', 'label']]
 
 def load_hateful_memes_data(file_path):
     """Load Hateful Memes dataset."""
-    df = pd.read_csv(file_path)
+    # The original dataset is a jsonlines file (.jsonl)
+    if file_path.endswith('.jsonl'):
+        df = pd.read_json(file_path, lines=True)
+    else: # For compatibility with the sample csv
+        df = pd.read_csv(file_path)
     return df
 
 def load_sarcasm_data(file_path):
     """Load iSarcasm dataset."""
     df = pd.read_csv(file_path)
-    return df[['tweet', 'sarcastic']]
+    # The full dataset has 'comment' and 'label' columns
+    if 'comment' in df.columns:
+        df.rename(columns={'comment': 'tweet', 'label': 'sarcastic'}, inplace=True)
+    return df[['tweet', 'sarcastic']].dropna()
 
 def load_emotion_data(file_path):
     """Load GoEmotions dataset."""
     df = pd.read_csv(file_path)
-    # For simplicity, we'll use the raw text and emotion columns
+    # The full dataset can have multiple emotions, comma-separated.
+    # For this project's simple classifier, we'll take only the first emotion.
+    # A more advanced approach would be to train a multi-label classifier.
+    if df['emotion'].dtype == 'object' and df['emotion'].str.contains(',').any():
+        print("Note: Multiple emotions detected. Using only the first emotion for each entry.")
+        df['emotion'] = df['emotion'].apply(lambda x: x.split(',')[0])
+
+    # The full dataset has many emotions. We can map them to a smaller set if needed,
+    # but for now, we'll use them as is.
     return df[['text', 'emotion']]
 
 class TextDataset(Dataset):

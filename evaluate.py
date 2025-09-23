@@ -3,12 +3,17 @@ import numpy as np
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 import os
+import argparse
+from tqdm import tqdm
+
+from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
+from torch.utils.data import DataLoader
 
 from fusion_train import FusionMLP
-from utils import set_seed, get_device
+from utils import set_seed, get_device, load_olid_data, TextDataset
 
-def evaluate_model(model, features, labels, device):
-    """Evaluate a given model on a set of features and labels."""
+def evaluate_fusion_model(model, features, labels, device):
+    """Evaluate a given fusion model on a set of features and labels."""
     model.to(device)
     model.eval()
     
@@ -20,48 +25,95 @@ def evaluate_model(model, features, labels, device):
     
     return predictions.cpu().numpy()
 
-def main():
+def evaluate_text_model(model, data_loader, device):
+    """Evaluate a text classification model."""
+    model = model.eval()
+    predictions = []
+    actual_labels = []
+    with torch.no_grad():
+        for d in tqdm(data_loader, desc="Evaluating Text Model"):
+            input_ids = d["input_ids"].to(device)
+            attention_mask = d["attention_mask"].to(device)
+            labels = d["labels"].to(device)
+
+            outputs = model(
+                input_ids=input_ids,
+                attention_mask=attention_mask
+            )
+            logits = outputs.logits
+            _, preds = torch.max(logits, dim=1)
+
+            predictions.extend(preds.cpu().numpy())
+            actual_labels.extend(labels.cpu().numpy())
+    return np.array(predictions), np.array(actual_labels)
+
+
+def main(args):
     set_seed()
     device = get_device()
     print(f"Using device: {device}")
 
-    # Load all features and labels
-    text_f = np.load('features/text_features.npy')
-    image_f = np.load('features/image_features.npy')
-    sarcasm_f = np.load('features/sarcasm_features.npy')
-    emotion_f = np.load('features/emotion_features.npy')
-    labels = np.load('features/labels.npy')
+    if args.model_type == 'fusion':
+        print("--- Evaluating Full Multimodal Model ---")
+        try:
+            text_f = np.load('features/text_features.npy')
+            image_f = np.load('features/image_features.npy')
+            sarcasm_f = np.load('features/sarcasm_features.npy')
+            emotion_f = np.load('features/emotion_features.npy')
+            labels = np.load('features/labels.npy')
+        except FileNotFoundError as e:
+            print(f"Error loading feature file: {e}. Please run precompute_features.py first.")
+            return
 
-    # Define feature combinations to test
-    feature_sets = {
-        "Text Only": text_f,
-        "Text + Emotion": np.concatenate([text_f, emotion_f], axis=1),
-        "Text + Emotion + Sarcasm": np.concatenate([text_f, emotion_f, sarcasm_f], axis=1),
-        "Full Multimodal": np.concatenate([text_f, image_f, sarcasm_f, emotion_f], axis=1)
-    }
+        full_features = np.concatenate([text_f, image_f, sarcasm_f, emotion_f], axis=1)
+        input_dim = full_features.shape[1]
+        
+        model = FusionMLP(input_dim=input_dim)
+        try:
+            model.load_state_dict(torch.load('models/fusion_model.bin', map_location=device))
+        except FileNotFoundError:
+            print("Fusion model not found. Please run fusion_train.py first.")
+            return
 
-    # Load the trained fusion model
-    # Note: We use the same architecture but the input dimension will vary.
-    # For a fair comparison, one should train a separate MLP for each feature set.
-    # Here, for simplicity, we'll load the full model and evaluate it on the full feature set.
+        predictions = evaluate_fusion_model(model, full_features, labels, device)
+        cm_path = 'figures/confusion_matrix_fusion.png'
+        model_title = 'Full Multimodal Model'
+
+    elif args.model_type == 'text':
+        print("--- Evaluating Text-Only Model ---")
+        MODEL_NAME = 'distilbert-base-uncased'
+        MODEL_PATH = 'models/text_model.bin'
+        
+        try:
+            model = DistilBertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2)
+            model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+            model.to(device)
+            tokenizer = DistilBertTokenizer.from_pretrained(MODEL_NAME)
+        except FileNotFoundError:
+            print(f"Text model not found at {MODEL_PATH}. Please run train_text.py first.")
+            return
+
+        print(f"Loading evaluation data from {args.data_path}")
+        df = load_olid_data(args.data_path)
+        
+        dataset = TextDataset(
+            texts=df.tweet.to_numpy(),
+            labels=df.label.to_numpy(),
+            tokenizer=tokenizer,
+            max_len=128
+        )
+        data_loader = DataLoader(dataset, batch_size=16)
+
+        predictions, labels = evaluate_text_model(model, data_loader, device)
+        cm_path = 'figures/confusion_matrix_text_only.png'
+        model_title = 'Text-Only Model'
     
-    print("--- Evaluating Full Multimodal Model ---")
-    
-    full_features = feature_sets["Full Multimodal"]
-    input_dim = full_features.shape[1]
-    
-    model = FusionMLP(input_dim=input_dim)
-    try:
-        model.load_state_dict(torch.load('models/fusion_model.bin', map_location=device))
-    except FileNotFoundError:
-        print("Fusion model not found. Please run fusion_train.py first.")
+    else:
+        print(f"Unknown model type: {args.model_type}")
         return
 
-    predictions = evaluate_model(model, full_features, labels, device)
-    
     # --- Generate and Save Report ---
-    report = classification_report(labels, predictions, target_names=['NOT HATE', 'HATE'], output_dict=True)
-    print("\nClassification Report (Full Model):")
+    print(f"\nClassification Report ({model_title}):")
     print(classification_report(labels, predictions, target_names=['NOT HATE', 'HATE']))
     
     # --- Generate and Save Confusion Matrix ---
@@ -70,29 +122,15 @@ def main():
     
     fig, ax = plt.subplots(figsize=(6, 6))
     disp.plot(ax=ax, cmap='Blues')
-    plt.title('Confusion Matrix (Full Model)')
+    plt.title(f'Confusion Matrix ({model_title})')
     
-    output_dir = 'figures'
-    os.makedirs(output_dir, exist_ok=True)
-    plt.savefig(os.path.join(output_dir, 'confusion_matrix.png'))
-    print(f"Confusion matrix saved to {output_dir}/confusion_matrix.png")
-
-    # --- Comparison (Conceptual) ---
-    # To properly compare models, you would need to train an MLP for each feature subset.
-    # The code below is a placeholder to show how you would structure the comparison.
-    print("\n--- Model Comparison ---")
-    print("Note: This is a conceptual comparison. For a fair result, train an MLP for each feature set.")
-    
-    # Example for Text-only model
-    # text_only_model = FusionMLP(input_dim=text_f.shape[1])
-    # text_only_model.load_state_dict(torch.load('models/text_only_model.bin'))
-    # text_preds = evaluate_model(text_only_model, text_f, labels, device)
-    # text_f1 = f1_score(labels, text_preds, average='macro')
-    # print(f"Text Only F1: {text_f1:.4f}")
-
-    full_f1 = report['macro avg']['f1-score']
-    print(f"Full Multimodal Macro F1: {full_f1:.4f}")
-    print("\nTo get comparison metrics, re-run `fusion_train.py` for each subset of features and save separate models.")
+    os.makedirs('figures', exist_ok=True)
+    plt.savefig(cm_path)
+    print(f"Confusion matrix saved to {cm_path}")
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model_type', type=str, default='fusion', choices=['fusion', 'text'], help='Type of model to evaluate.')
+    parser.add_argument('--data_path', type=str, default='data/olid_sample.csv', help='Path to the evaluation data file (used for text model evaluation).')
+    args = parser.parse_args()
+    main(args)

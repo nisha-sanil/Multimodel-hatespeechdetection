@@ -1,6 +1,6 @@
 id,img,text,label
-12345,memes/12345.png,"this is a wholesome meme",0
-67890,memes/67890.png,"this is a hateful meme",1
-11111,memes/11111.png,"just a normal picture",0
-22222,memes/22222.png,"something offensive on an image",1
-33333,memes/33333.png,"another meme here",0
+12345,img/12345.png,"this is a wholesome meme",0
+67890,img/67890.png,"this is a hateful meme",1
+11111,img/11111.png,"just a normal picture",0
+22222,img/22222.png,"something offensive on an image",1
+33333,img/33333.png,"another meme here",0

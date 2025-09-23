@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 import joblib
 import os
+import argparse
 
 from utils import set_seed, load_sarcasm_data, load_emotion_data
 
@@ -36,27 +37,36 @@ def train_classifier(df, text_col, label_col, model_path):
     print(f"Model saved to {model_path}")
     print("-" * 30)
 
-def main():
+def main(args):
     # --- Sarcasm Model ---
-    sarcasm_df = load_sarcasm_data('data/isarcasm_sample.csv')
+    print(f"Loading sarcasm data from {args.sarcasm_path}")
+    sarcasm_df = load_sarcasm_data(args.sarcasm_path)
     # Ensure the text column is string type
     sarcasm_df['tweet'] = sarcasm_df['tweet'].astype(str)
     train_classifier(
         df=sarcasm_df,
         text_col='tweet',
         label_col='sarcastic',
-        model_path='models/sarcasm_model.joblib'
+        model_path=args.sarcasm_model_save_path
     )
 
     # --- Emotion Model ---
-    emotion_df = load_emotion_data('data/goemotions_sample.csv')
+    print(f"Loading emotion data from {args.emotion_path}")
+    emotion_df = load_emotion_data(args.emotion_path)
     emotion_df['text'] = emotion_df['text'].astype(str)
     train_classifier(
         df=emotion_df,
         text_col='text',
         label_col='emotion',
-        model_path='models/emotion_model.joblib'
+        model_path=args.emotion_model_save_path
     )
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--sarcasm_path', type=str, default='data/isarcasm_sample.csv', help='Path to the sarcasm data file.')
+    parser.add_argument('--emotion_path', type=str, default='data/goemotions_sample.csv', help='Path to the emotion data file.')
+    parser.add_argument('--sarcasm_model_save_path', type=str, default='models/sarcasm_model.joblib')
+    parser.add_argument('--emotion_model_save_path', type=str, default='models/emotion_model.joblib')
+
+    args = parser.parse_args()
+    main(args)

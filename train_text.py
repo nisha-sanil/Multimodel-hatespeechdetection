@@ -5,6 +5,7 @@ from sklearn.metrics import accuracy_score, f1_score
 import numpy as np
 from tqdm import tqdm
 import os
+import argparse
 
 from utils import set_seed, get_device, load_olid_data, TextDataset
 
@@ -65,14 +66,13 @@ def eval_model(model, data_loader, loss_fn, device, n_examples):
 
     return correct_predictions.double() / n_examples, np.mean(losses)
 
-def main():
+def main(args):
     set_seed()
     device = get_device()
     print(f"Using device: {device}")
 
     # Config
     MODEL_NAME = 'distilbert-base-uncased'
-    DATA_PATH = 'data/olid_sample.csv'
     MODEL_SAVE_PATH = 'models/text_model.bin'
     MAX_LEN = 128
     BATCH_SIZE = 16 if device.type == 'cuda' else 4
@@ -80,7 +80,8 @@ def main():
     LEARNING_RATE = 2e-5
 
     # Load data and tokenizer
-    df = load_olid_data(DATA_PATH)
+    print(f"Loading data from {args.data_path}")
+    df = load_olid_data(args.data_path)
     tokenizer = DistilBertTokenizer.from_pretrained(MODEL_NAME)
     
     dataset = TextDataset(
@@ -118,4 +119,7 @@ def main():
     print(f"Text model saved to {MODEL_SAVE_PATH}")
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_path', type=str, default='data/olid_sample.csv', help='Path to the OLID training data file.')
+    args = parser.parse_args()
+    main(args)
