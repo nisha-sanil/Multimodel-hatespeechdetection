@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import DataLoader, random_split
-from transformers import DistilBertTokenizer, DistilBertForSequenceClassification, AdamW, get_linear_schedule_with_warmup
+from transformers import DistilBertTokenizer, DistilBertForSequenceClassification, get_linear_schedule_with_warmup
+from torch.optim import AdamW
 from sklearn.metrics import accuracy_score, f1_score
 import numpy as np
 from tqdm import tqdm
