@@ -8,7 +8,7 @@ import os
 
 from utils import get_device
 from precompute_features import get_text_embeddings, get_image_embeddings, get_aux_scores
-from fusion_train import FusionMLP
+from fusion_train import FusionMLP, TEXT_DIM, IMG_DIM, SARCASM_DIM, EMOTION_DIM
 from utils import TextDataset
 
 from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
@@ -40,11 +40,7 @@ def load_models(device, text_model_path, sarcasm_model_path, emotion_model_path,
     # Fusion model
     # Define feature dimensions based on the models, not cached .npy files.
     # This makes the demo independent of the 'features' directory.
-    text_dim = 768  # DistilBERT base model's hidden size
-    img_dim = 2048  # ResNet50's final avgpool layer output size
-    sarcasm_dim = 1   # A single probability score
-    emotion_dim = len(emotion_model.classes_) # Number of emotion classes from the trained model
-    input_dim = text_dim + img_dim + sarcasm_dim + emotion_dim
+    input_dim = TEXT_DIM + IMG_DIM + SARCASM_DIM + EMOTION_DIM
 
     fusion_model = FusionMLP(input_dim=input_dim)
     fusion_model.load_state_dict(torch.load(fusion_model_path, map_location=device))

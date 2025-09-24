@@ -10,6 +10,7 @@ import joblib
 import os
 import argparse
 
+from fusion_train import EMOTION_DIM
 from utils import get_device, load_hateful_memes_data
 
 def get_text_embeddings(texts, model, tokenizer, device, max_len=128):
