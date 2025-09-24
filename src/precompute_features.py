@@ -123,9 +123,13 @@ def main(args):
 
     # --- 3. Auxiliary Features ---
     print("Loading auxiliary models...")
-    sarcasm_model = joblib.load(args.sarcasm_model_path)
-    emotion_model = joblib.load(args.emotion_model_path)
-
+    try:
+        sarcasm_model = joblib.load(args.sarcasm_model_path)
+        emotion_model = joblib.load(args.emotion_model_path)
+    except FileNotFoundError as e:
+        print(f"Auxiliary model not found: {e}. Please ensure paths are correct and models are trained.")
+        return
+        
     sarcasm_scores, emotion_scores = get_aux_scores(texts, sarcasm_model, emotion_model)
     np.save('features/sarcasm_features.npy', sarcasm_scores)
     np.save('features/emotion_features.npy', emotion_scores)
