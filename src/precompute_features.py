@@ -77,10 +77,15 @@ def get_aux_scores(texts, sarcasm_model, emotion_model):
     # For emotion, we'll one-hot encode the predicted label
     emotion_preds = emotion_model.predict(texts)
     emotion_classes = emotion_model.classes_
-    emotion_one_hot = np.zeros((len(texts), len(emotion_classes)))
+    emotion_one_hot = np.zeros((len(texts), EMOTION_DIM))
     for i, pred in enumerate(emotion_preds):
-        class_idx = np.where(emotion_classes == pred)[0][0]
-        emotion_one_hot[i, class_idx] = 1
+        # Find the index of the predicted class label
+        class_indices = np.where(emotion_classes == pred)[0]
+        if class_indices.size > 0:
+            class_idx = class_indices[0]
+            # Ensure the index is within the bounds of our one-hot array
+            if class_idx < EMOTION_DIM:
+                emotion_one_hot[i, class_idx] = 1
         
     return sarcasm_probs.reshape(-1, 1), emotion_one_hot
 
@@ -94,13 +99,19 @@ def main(args):
     texts = df['text'].tolist()
     image_paths = [os.path.join('data', p) for p in df['img'].tolist()]
 
+    # Create output directories if they don't exist
+    os.makedirs('features', exist_ok=True)
+
     # --- 1. Text Features ---
     print("Loading text model...")
-    text_model_path = args.text_model_path
-    text_tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-    text_model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=2)
-    text_model.load_state_dict(torch.load(text_model_path, map_location=device))
-    text_model.to(device)
+    try:
+        text_tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+        text_model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=2)
+        text_model.load_state_dict(torch.load(args.text_model_path, map_location=device))
+        text_model.to(device)
+    except FileNotFoundError:
+        print(f"Text model not found at '{args.text_model_path}'. Please run train_text.py first.")
+        return
     
     text_features = get_text_embeddings(texts, text_model, text_tokenizer, device)
     np.save('features/text_features.npy', text_features)
@@ -148,8 +159,8 @@ def main(args):
     print(f"Labels shape: {labels.shape}")
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--data_path', type=str, default='data/hateful_memes_sample.csv', help='Path to the hateful memes data file.')
+    parser = argparse.ArgumentParser(description="Precompute features for the multimodal model.")
+    parser.add_argument('--data_path', type=str, default='data/train.jsonl', help='Path to the hateful memes data file.')
     parser.add_argument('--text_model_path', type=str, default='models/text_model.bin')
     parser.add_argument('--sarcasm_model_path', type=str, default='models/sarcasm_model.joblib')
     parser.add_argument('--emotion_model_path', type=str, default='models/emotion_model.joblib')
