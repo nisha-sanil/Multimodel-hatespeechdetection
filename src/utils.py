@@ -44,16 +44,26 @@ def load_sarcasm_data(file_path):
 def load_emotion_data(file_path):
     """Load GoEmotions dataset."""
     df = pd.read_csv(file_path)
-    # The full dataset can have multiple emotions, comma-separated.
-    # For this project's simple classifier, we'll take only the first emotion.
-    # A more advanced approach would be to train a multi-label classifier.
-    if df['emotion'].dtype == 'object' and df['emotion'].str.contains(',').any():
-        print("Note: Multiple emotions detected. Using only the first emotion for each entry.")
-        df['emotion'] = df['emotion'].apply(lambda x: x.split(',')[0])
-
-    # The full dataset has many emotions. We can map them to a smaller set if needed,
-    # but for now, we'll use them as is.
-    return df[['text', 'emotion']]
+    
+    # The full GoEmotions dataset uses one-hot encoding across many columns.
+    # We need to find which emotion is present for each row.
+    if 'emotion' not in df.columns:
+        print("GoEmotions full dataset format detected. Converting one-hot to single label column...")
+        # The first 8 columns are metadata, the rest are emotion labels.
+        # A more robust way would be to define the emotion columns explicitly.
+        emotion_cols = df.columns[8:] 
+        
+        # Find the first emotion column with a '1' for each row
+        df['emotion'] = df[emotion_cols].idxmax(axis=1)
+        
+        # Handle cases where no emotion is present (all zeros)
+        # The dataset has a 'neutral' column, which idxmax should handle.
+        # If not, we could add: df.loc[df[emotion_cols].sum(axis=1) == 0, 'emotion'] = 'neutral'
+        
+        return df[['text', 'emotion']]
+    else:
+        # This handles the original sample file format
+        return df[['text', 'emotion']]
 
 class TextDataset(Dataset):
     """PyTorch dataset for text classification."""
