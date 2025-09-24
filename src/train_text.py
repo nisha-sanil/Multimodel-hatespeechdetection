@@ -40,7 +40,7 @@ def train_epoch(model, data_loader, loss_fn, optimizer, device, scheduler, n_exa
         scheduler.step()
         optimizer.zero_grad()
 
-    return correct_predictions.double() / n_examples, np.mean(losses)
+    return correct_predictions.item() / n_examples, np.mean(losses)
 
 def eval_model(model, data_loader, loss_fn, device, n_examples):
     model = model.eval()
@@ -65,7 +65,7 @@ def eval_model(model, data_loader, loss_fn, device, n_examples):
             correct_predictions += torch.sum(preds == labels)
             losses.append(loss.item())
 
-    return correct_predictions.double() / n_examples, np.mean(losses)
+    return correct_predictions.item() / n_examples, np.mean(losses)
 
 def main(args):
     set_seed()

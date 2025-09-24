@@ -130,7 +130,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_type', type=str, default='fusion', choices=['fusion', 'text'], help='Type of model to evaluate.')
-    parser.add_argument('--data_path', type=str, default='data/olid_sample.csv', help='Path to the evaluation data file (used for text model evaluation).')
+    parser.add_argument('--data_path', type=str, default='data/olid-training-v1.0.tsv', help='Path to the evaluation data file (used for text model evaluation).')
     parser.add_argument('--text_model_path', type=str, default='models/text_model.bin', help='Path to the text model file.')
     parser.add_argument('--fusion_model_path', type=str, default='models/fusion_model.bin', help='Path to the fusion model file.')
     args = parser.parse_args()
