@@ -92,10 +92,12 @@ def main(args):
     model = FusionMLP(input_dim=input_dim).to(device)
     optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
     criterion = nn.CrossEntropyLoss()
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=2, factor=0.5)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=3, factor=0.5, verbose=True)
 
     best_val_loss = float('inf')
     history = {'train_loss': [], 'val_loss': [], 'train_acc': [], 'val_acc': []}
+    early_stopping_patience = 5
+    early_stopping_counter = 0
 
     print("Training Fusion MLP...")
     for epoch in range(EPOCHS):

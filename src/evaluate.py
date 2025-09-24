@@ -70,9 +70,9 @@ def main(args):
         
         model = FusionMLP(input_dim=input_dim)
         try:
-            model.load_state_dict(torch.load('models/fusion_model.bin', map_location=device))
+            model.load_state_dict(torch.load(args.fusion_model_path, map_location=device))
         except FileNotFoundError:
-            print("Fusion model not found. Please run fusion_train.py first.")
+            print(f"Fusion model not found at {args.fusion_model_path}. Please run fusion_train.py first.")
             return
 
         predictions = evaluate_fusion_model(model, full_features, labels, device)
@@ -85,11 +85,11 @@ def main(args):
         
         try:
             model = DistilBertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2)
-            model.load_state_dict(torch.load(args.model_path, map_location=device))
+            model.load_state_dict(torch.load(args.text_model_path, map_location=device))
             model.to(device)
             tokenizer = DistilBertTokenizer.from_pretrained(MODEL_NAME)
         except FileNotFoundError:
-            print(f"Text model not found at {args.model_path}. Please run train_text.py first.")
+            print(f"Text model not found at {args.text_model_path}. Please run train_text.py first.")
             return
 
         print(f"Loading evaluation data from {args.data_path}")
@@ -131,6 +131,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_type', type=str, default='fusion', choices=['fusion', 'text'], help='Type of model to evaluate.')
     parser.add_argument('--data_path', type=str, default='data/olid_sample.csv', help='Path to the evaluation data file (used for text model evaluation).')
-    parser.add_argument('--model_path', type=str, default='models/text_model.bin', help='Path to the model file to evaluate (used for text model).')
+    parser.add_argument('--text_model_path', type=str, default='models/text_model.bin', help='Path to the text model file.')
+    parser.add_argument('--fusion_model_path', type=str, default='models/fusion_model.bin', help='Path to the fusion model file.')
     args = parser.parse_args()
     main(args)

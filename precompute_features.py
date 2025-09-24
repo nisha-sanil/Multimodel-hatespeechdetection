@@ -24,13 +24,14 @@ def get_text_embeddings(texts, model, tokenizer, device, max_len=128):
                 truncation=True,
                 padding='max_length',
                 max_length=max_len
-            ).to(device) 
+            ).to(device)
             
+            # Get hidden states by calling the model with output_hidden_states=True
             outputs = model(**inputs, output_hidden_states=True)
             
-            # Use the embedding of the [CLS] token (the first token)
             # The hidden states are a tuple. The last layer is the last element.
             last_hidden_state = outputs.hidden_states[-1]
+            # Use the embedding of the [CLS] token (the first token)
             cls_embedding = last_hidden_state[:, 0, :].cpu().numpy()
             embeddings.append(cls_embedding)
     return np.vstack(embeddings)
@@ -40,7 +41,6 @@ def get_image_embeddings(image_paths, model, transform, device):
     model.eval()
     embeddings = []
     
-    # Hook to get features from the layer before the final classification layer
     features = {}
     def get_features(name):
         def hook(model, input, output):
@@ -53,33 +53,32 @@ def get_image_embeddings(image_paths, model, transform, device):
         for img_path in tqdm(image_paths, desc="Extracting Image Features"):
             if not os.path.exists(img_path):
                 print(f"Warning: Image not found at {img_path}. Using zero vector.")
-                # Using a zero vector as a placeholder
-                embeddings.append(np.zeros((1, 2048)))
+                embeddings.append(np.zeros((2048,)))
                 continue
             
             try:
                 image = Image.open(img_path).convert('RGB')
                 image = transform(image).unsqueeze(0).to(device)
                 _ = model(image)
-                img_embedding = features['avgpool'].squeeze(0).cpu().numpy().reshape(1, -1)
+                img_embedding = features['avgpool'].squeeze().cpu().numpy()
                 embeddings.append(img_embedding)
             except Exception as e:
                 print(f"Warning: Could not process image {img_path}. Error: {e}. Using zero vector.")
-                embeddings.append(np.zeros((1, 2048)))
+                embeddings.append(np.zeros((2048,)))
             
-    return np.vstack(embeddings)
+    return np.array(embeddings)
 
 def get_aux_scores(texts, sarcasm_model, emotion_model):
     """Get predictions from sarcasm and emotion models."""
-    sarcasm_probs = sarcasm_model.predict_proba(texts)[:, 1]  # Probability of being sarcastic
+    sarcasm_probs = sarcasm_model.predict_proba(texts)[:, 1]
     
-    # For emotion, we'll one-hot encode the predicted label
     emotion_preds = emotion_model.predict(texts)
     emotion_classes = emotion_model.classes_
     emotion_one_hot = np.zeros((len(texts), len(emotion_classes)))
     for i, pred in enumerate(emotion_preds):
-        class_idx = np.where(emotion_classes == pred)[0][0]
-        emotion_one_hot[i, class_idx] = 1
+        class_idx = np.where(emotion_classes == pred)[0]
+        if len(class_idx) > 0:
+            emotion_one_hot[i, class_idx[0]] = 1
         
     return sarcasm_probs.reshape(-1, 1), emotion_one_hot
 
@@ -95,13 +94,17 @@ def main(args):
 
     # --- 1. Text Features ---
     print("Loading text model...")
-    text_model_path = args.text_model_path
-    text_tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-    text_model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=2)
-    text_model.load_state_dict(torch.load(text_model_path, map_location=device))
-    text_model.to(device)
+    try:
+        text_tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+        text_model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=2)
+        text_model.load_state_dict(torch.load(args.text_model_path, map_location=device))
+        text_model.to(device)
+    except FileNotFoundError:
+        print(f"Text model not found at '{args.text_model_path}'. Please run train_text.py first.")
+        return
     
     text_features = get_text_embeddings(texts, text_model, text_tokenizer, device)
+    os.makedirs('features', exist_ok=True)
     np.save('features/text_features.npy', text_features)
     print("Text features saved.")
 

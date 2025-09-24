@@ -59,7 +59,7 @@ def load_models(device, text_model_path, sarcasm_model_path, emotion_model_path,
     }
     return models
 
-def predict_fusion(text, image_path, models, device):
+def predict(text, image_path, models, device, mode='fusion'):
     """Make a prediction on a single instance."""
     # 1. Extract features
     text_model, text_tokenizer = models['text']
@@ -68,53 +68,46 @@ def predict_fusion(text, image_path, models, device):
     emotion_model = models['emotion']
     fusion_model = models['fusion']
 
-    text_feat = get_text_embeddings([text], text_model, text_tokenizer, device)
-    
-    if image_path and os.path.exists(image_path):
-        image_feat = get_image_embeddings([image_path], img_model, img_transform, device)
+    if mode == 'fusion':
+        text_feat = get_text_embeddings([text], text_model, text_tokenizer, device)
+        
+        if image_path and os.path.exists(image_path):
+            image_feat = get_image_embeddings([image_path], img_model, img_transform, device)
+        else:
+            if image_path:
+                print(f"Warning: Image path '{image_path}' not found. Using zero vector for image features.")
+            image_feat = np.zeros((1, 2048)) # ResNet50 feature size
+
+        sarcasm_feat, emotion_feat = get_aux_scores([text], sarcasm_model, emotion_model)
+
+        # 2. Concatenate features
+        all_features = np.concatenate([text_feat, image_feat, sarcasm_feat, emotion_feat], axis=1)
+        features_tensor = torch.tensor(all_features, dtype=torch.float32).to(device)
+
+        # 3. Predict with fusion model
+        fusion_model.eval()
+        with torch.no_grad():
+            outputs = fusion_model(features_tensor)
+            probabilities = F.softmax(outputs, dim=1)
+            confidence, predicted_class = torch.max(probabilities, 1)
+
+    elif mode == 'text_only':
+        encoding = text_tokenizer.encode_plus(
+            text,
+            add_special_tokens=True,
+            max_length=128,
+            return_token_type_ids=False,
+            padding='max_length',
+            truncation=True,
+            return_attention_mask=True,
+            return_tensors='pt',
+        )
+        with torch.no_grad():
+            outputs = text_model(input_ids=encoding['input_ids'].to(device), attention_mask=encoding['attention_mask'].to(device))
+            probabilities = F.softmax(outputs.logits, dim=1)
+            confidence, predicted_class = torch.max(probabilities, 1)
     else:
-        print(f"Warning: Image path '{image_path}' not found. Using zero vector for image features.")
-        image_feat = np.zeros((1, 2048)) # ResNet50 feature size
-
-    sarcasm_feat, emotion_feat = get_aux_scores([text], sarcasm_model, emotion_model)
-
-    # 2. Concatenate features
-    all_features = np.concatenate([text_feat, image_feat, sarcasm_feat, emotion_feat], axis=1)
-    features_tensor = torch.tensor(all_features, dtype=torch.float32).to(device)
-
-    # 3. Predict with fusion model
-    fusion_model.eval()
-    with torch.no_grad():
-        outputs = fusion_model(features_tensor)
-        probabilities = F.softmax(outputs, dim=1)
-        confidence, predicted_class = torch.max(probabilities, 1)
-
-    label = "HATE" if predicted_class.item() == 1 else "NOT HATE"
-    return label, confidence.item()
-
-def predict_text_only(text, text_model_path, device):
-    """Make a prediction using only the text model."""
-    tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-    model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=2)
-    model.load_state_dict(torch.load(text_model_path, map_location=device))
-    model.to(device)
-    model.eval()
-
-    encoding = tokenizer.encode_plus(
-        text,
-        add_special_tokens=True,
-        max_length=128,
-        return_token_type_ids=False,
-        padding='max_length',
-        truncation=True,
-        return_attention_mask=True,
-        return_tensors='pt',
-    )
-
-    with torch.no_grad():
-        outputs = model(input_ids=encoding['input_ids'].to(device), attention_mask=encoding['attention_mask'].to(device))
-        probabilities = F.softmax(outputs.logits, dim=1)
-        confidence, predicted_class = torch.max(probabilities, 1)
+        raise ValueError(f"Invalid prediction mode: {mode}")
 
     label = "HATE" if predicted_class.item() == 1 else "NOT HATE"
     return label, confidence.item()
@@ -134,25 +127,17 @@ def main():
     device = get_device()
     print(f"Using device: {device}")
 
-    if args.mode == 'fusion':
-        try:
-            models = load_models(device,
-                                 text_model_path=args.text_model_path,
-                                 sarcasm_model_path=args.sarcasm_model_path,
-                                 emotion_model_path=args.emotion_model_path,
-                                 fusion_model_path=args.fusion_model_path)
-        except FileNotFoundError as e:
-            print(f"Error loading models for fusion mode: {e}. Please ensure all models exist and paths are correct.")
-            return
-        label, confidence = predict_fusion(args.text, args.image_path, models, device)
-    
-    elif args.mode == 'text_only':
-        try:
-            label, confidence = predict_text_only(args.text, args.text_model_path, device)
-        except FileNotFoundError as e:
-            print(f"Error loading text model: {e}. Please ensure the text model exists at the specified path.")
-            return
+    try:
+        models = load_models(device,
+                             text_model_path=args.text_model_path,
+                             sarcasm_model_path=args.sarcasm_model_path,
+                             emotion_model_path=args.emotion_model_path,
+                             fusion_model_path=args.fusion_model_path)
+    except FileNotFoundError as e:
+        print(f"Error loading models: {e}. Please ensure all models exist and paths are correct.")
+        return
 
+    label, confidence = predict(args.text, args.image_path, models, device, mode=args.mode)
 
     print("\n--- Prediction ---")
     print(f"Label: {label}")

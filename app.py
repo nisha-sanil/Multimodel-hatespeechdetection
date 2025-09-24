@@ -54,18 +54,6 @@ with col1:
     st.markdown(f"**Text:**")
     st.info(input_text)
 
-    temp_image_path = None
-
-    if uploaded_file is not None:
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Meme", use_column_width=True)
-        
-        temp_dir = "temp_images"
-        os.makedirs(temp_dir, exist_ok=True)
-        temp_image_path = os.path.join(temp_dir, uploaded_file.name)
-        with open(temp_image_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
-
 with col2:
     st.subheader("Prediction")
     if st.sidebar.button("Detect Hate Speech", use_container_width=True, type="primary"):
@@ -74,15 +62,30 @@ with col2:
         elif models is None:
             st.error("Models are not loaded. Cannot perform prediction.")
         else:
-            try:
-                with st.spinner("Analyzing..."):
+            with st.spinner("Analyzing..."):
+                temp_image_path = None
+                if uploaded_file is not None:
+                    # Use a context manager for robust temporary file handling
+                    temp_dir = "temp_images"
+                    os.makedirs(temp_dir, exist_ok=True)
+                    temp_image_path = os.path.join(temp_dir, uploaded_file.name)
+                    
+                    with open(temp_image_path, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
+                    
+                    # Display the image in the main column after saving it
+                    with col1:
+                        image = Image.open(temp_image_path)
+                        st.image(image, caption="Uploaded Meme", use_column_width=True)
+
+                # Perform prediction
+                try:
                     label, confidence = predict(input_text, temp_image_path, models, device)
 
                     if label == "HATE":
                         st.error(f"Label: {label}")
                     else:
                         st.success(f"Label: {label}")
-                    
                     st.metric(label="Confidence Score", value=f"{confidence:.4f}")
 
                     st.markdown("---")
@@ -91,12 +94,11 @@ with col2:
                     emotion_pred = models['emotion'].predict([input_text])[0]
                     st.write(f"Sarcasm Probability: {sarcasm_prob:.2f}")
                     st.write(f"Predicted Emotion: **{emotion_pred.capitalize()}**")
-            finally:
-                if temp_image_path and os.path.exists(temp_image_path):
-                    try:
+                finally:
+                    # This cleanup is now more robustly handled if we were using tempfile module,
+                    # but manual removal is still necessary here.
+                    if temp_image_path and os.path.exists(temp_image_path):
                         os.remove(temp_image_path)
-                    except Exception as e:
-                        st.warning(f"Error removing temporary file: {e}")
 
 st.markdown("---")
 st.markdown("Built by Gemini Code Assist.")
