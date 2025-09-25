@@ -94,10 +94,20 @@ def main(args):
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
 
     # Initialize model, optimizer, etc.
+    # --- Handle Class Imbalance with Class Weights ---
+    # Count the occurrences of each class in the full dataset
+    class_counts = np.bincount(labels)
+    # Calculate weights: inverse of the class frequency
+    class_weights = 1. / torch.tensor(class_counts, dtype=torch.float)
+    class_weights = class_weights / class_weights.sum() # Normalize
+    class_weights = class_weights.to(device)
+    print(f"Using class weights to handle imbalance: {class_weights.cpu().numpy()}")
+
     input_dim = all_features.shape[1]
     model = FusionMLP(input_dim=input_dim).to(device)
     optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
-    criterion = nn.CrossEntropyLoss()
+    # Pass the calculated weights to the loss function
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=3, factor=0.5, verbose=True)
 
     best_val_loss = float('inf')
