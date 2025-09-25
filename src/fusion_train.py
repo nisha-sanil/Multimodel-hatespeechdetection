@@ -31,7 +31,7 @@ class FusionMLP(nn.Module):
         x = self.layer2(x)
         return x
 
-def plot_history(history, save_path='figures/'):
+def plot_history(history, save_path):
     os.makedirs(save_path, exist_ok=True)
     plt.figure(figsize=(12, 5))
 
@@ -166,10 +166,13 @@ def main(args):
             torch.save(model.state_dict(), args.model_save_path)
             print(f"Best model saved to {args.model_save_path}")
 
-    plot_history(history)
+    # Use the provided path to save the plot
+    plot_history(history, save_path=args.figures_save_path)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_save_path', type=str, default='models/fusion_model.bin', help='Path to save the trained fusion model.')
+    # Add the missing argument for the figures path
+    parser.add_argument('--figures_save_path', type=str, default='figures/', help='Directory to save the training history plot.')
     args = parser.parse_args()
     main(args)
