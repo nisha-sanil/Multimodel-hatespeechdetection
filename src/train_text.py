@@ -138,7 +138,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_path', type=str, default='data/olid_sample.csv', help='Path to the OLID training data file.')
+    parser.add_argument('--data_path', type=str, default='data/olid-training-v1.0.tsv', help='Path to the OLID training data file.')
     parser.add_argument('--model_save_path', type=str, default='models/text_model.bin', help='Path to save the trained text model.')
     args = parser.parse_args()
     main(args)

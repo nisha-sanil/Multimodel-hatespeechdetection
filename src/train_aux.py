@@ -63,8 +63,8 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--sarcasm_path', type=str, default='data/isarcasm_sample.csv', help='Path to the sarcasm data file.')
-    parser.add_argument('--emotion_path', type=str, default='data/goemotions_sample.csv', help='Path to the emotion data file.')
+    parser.add_argument('--sarcasm_path', type=str, default='data/train-balanced-sarcasm.csv', help='Path to the sarcasm data file.')
+    parser.add_argument('--emotion_path', type=str, default='data/go_emotions_dataset.csv', help='Path to the emotion data file.')
     parser.add_argument('--sarcasm_model_save_path', type=str, default='models/sarcasm_model.joblib')
     parser.add_argument('--emotion_model_save_path', type=str, default='models/emotion_model.joblib')
 
