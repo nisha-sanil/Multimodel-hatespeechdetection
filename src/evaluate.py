@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import os
 import argparse
 from tqdm import tqdm
-from transformers import RobertaTokenizer, RobertaForSequenceClassification
+from transformers import RobertaTokenizer, RobertaForSequenceClassification, DistilBertForSequenceClassification, DistilBertTokenizer
 from torch.utils.data import DataLoader
 
 # Assuming fusion_train.py is in the same src directory
@@ -61,11 +61,11 @@ def main(args):
     if args.model_type == 'fusion':
         print("--- Evaluating Full Multimodal Model ---")
         try:
-            text_f = np.load('features/text_features.npy')
-            image_f = np.load('features/image_features.npy')
-            sarcasm_f = np.load('features/sarcasm_features.npy')
-            emotion_f = np.load('features/emotion_features.npy')
-            labels = np.load('features/labels.npy')
+            text_f = np.load(os.path.join(args.features_path, 'text_features.npy'))
+            image_f = np.load(os.path.join(args.features_path, 'image_features.npy'))
+            sarcasm_f = np.load(os.path.join(args.features_path, 'sarcasm_features.npy'))
+            emotion_f = np.load(os.path.join(args.features_path, 'emotion_features.npy'))
+            labels = np.load(os.path.join(args.features_path, 'labels.npy'))
         except FileNotFoundError as e:
             print(f"Error loading feature file: {e}. Please run precompute_features.py first.")
             return
@@ -86,11 +86,11 @@ def main(args):
 
     elif args.model_type == 'text':
         print("--- Evaluating Text-Only Model ---")
-        MODEL_NAME = 'roberta-base' # <-- Upgrade to RoBERTa
+        MODEL_NAME = 'roberta-base'
         
         try:
-            tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME) # <-- Use RoBERTa Tokenizer
-            model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2) # <-- Use RoBERTa Model
+            tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME)
+            model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2)
             model.load_state_dict(torch.load(args.text_model_path, map_location=device))
             model.to(device)
         except FileNotFoundError:
@@ -139,5 +139,6 @@ if __name__ == '__main__':
     parser.add_argument('--text_model_path', type=str, default='models/text_model.bin', help='Path to the text model file.')
     parser.add_argument('--fusion_model_path', type=str, default='models/fusion_model.bin', help='Path to the fusion model file.')
     parser.add_argument('--figures_save_path', type=str, default='figures/', help='Directory to save the confusion matrix plot.')
+    parser.add_argument('--features_path', type=str, default='features/', help='Directory where precomputed features are stored.')
     args = parser.parse_args()
     main(args)

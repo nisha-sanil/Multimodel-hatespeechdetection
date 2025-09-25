@@ -11,7 +11,7 @@ import argparse
 from utils import set_seed, get_device, load_olid_data, TextDataset
 
 
-def train_epoch(model, data_loader, optimizer, device, scheduler, n_examples):
+def train_epoch(model, data_loader, loss_fn, optimizer, device, scheduler, n_examples):
     model = model.train()
     losses = []
     correct_predictions = 0
@@ -21,14 +21,13 @@ def train_epoch(model, data_loader, optimizer, device, scheduler, n_examples):
         attention_mask = d["attention_mask"].to(device)
         labels = d["labels"].to(device)
 
-        outputs = model(
+        outputs = model( # Get model outputs (logits)
             input_ids=input_ids,
-            attention_mask=attention_mask,
-            labels=labels
+            attention_mask=attention_mask
         )
-
-        loss = outputs.loss
         logits = outputs.logits
+        # Manually calculate loss using our weighted loss function
+        loss = loss_fn(logits, labels)
 
         _, preds = torch.max(logits, dim=1)
         correct_predictions += torch.sum(preds == labels)
@@ -42,7 +41,7 @@ def train_epoch(model, data_loader, optimizer, device, scheduler, n_examples):
 
     return correct_predictions.item() / n_examples, np.mean(losses)
 
-def eval_model(model, data_loader, device, n_examples):
+def eval_model(model, data_loader, loss_fn, device, n_examples):
     model = model.eval()
     losses = []
     
@@ -60,7 +59,7 @@ def eval_model(model, data_loader, device, n_examples):
                 attention_mask=attention_mask,
                 labels=labels
             )
-            loss = outputs.loss
+            loss = loss_fn(outputs.logits, labels) # Use the same loss function for consistency
             logits = outputs.logits
 
             preds = torch.argmax(logits, dim=1)
@@ -108,20 +107,29 @@ def main(args):
     model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2) # <-- Use RoBERTa Model
     model = model.to(device)
 
+    # --- Handle Class Imbalance with Class Weights ---
+    # Count the occurrences of each class in the full dataset
+    class_counts = np.bincount(df.label.to_numpy())
+    # Calculate weights: inverse of the class frequency
+    class_weights = 1. / torch.tensor(class_counts, dtype=torch.float)
+    class_weights = class_weights / class_weights.sum() # Normalize
+    class_weights = class_weights.to(device)
+    print(f"Using class weights to handle imbalance: {class_weights.cpu().numpy()}")
+
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
     total_steps = len(train_loader) * EPOCHS
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=total_steps)
-
+    loss_fn = torch.nn.CrossEntropyLoss(weight=class_weights).to(device)
     best_val_f1 = -1.0 # Track best F1 score instead of loss
     early_stopping_patience = 2
     early_stopping_counter = 0
 
     for epoch in range(EPOCHS):
         print(f'Epoch {epoch + 1}/{EPOCHS}')
-        train_acc, train_loss = train_epoch(model, train_loader, optimizer, device, scheduler, len(train_dataset))
+        # Pass the weighted loss_fn to the training function
+        train_acc, train_loss = train_epoch(model, train_loader, loss_fn, optimizer, device, scheduler, len(train_dataset))
         print(f'Train loss {train_loss:.4f} accuracy {train_acc:.4f}')
-
-        val_acc, val_loss, val_f1 = eval_model(model, val_loader, device, len(val_dataset))
+        val_acc, val_loss, val_f1 = eval_model(model, val_loader, loss_fn, device, len(val_dataset))
         print(f'Val loss {val_loss:.4f} accuracy {val_acc:.4f} F1-score {val_f1:.4f}')
 
         if val_f1 > best_val_f1:
