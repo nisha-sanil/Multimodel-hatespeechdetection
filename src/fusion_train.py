@@ -54,8 +54,9 @@ def plot_history(history, save_path):
     plt.legend()
 
     plt.tight_layout()
-    plt.savefig(os.path.join(save_path, 'fusion_training_history.png'))
-    print(f"Training history plot saved to {save_path}")
+    plot_file_path = os.path.join(save_path, 'fusion_training_history.png')
+    plt.savefig(plot_file_path)
+    print(f"Training history plot saved to {plot_file_path}")
 
 def main(args):
     set_seed()
@@ -66,6 +67,7 @@ def main(args):
     EPOCHS = 20
     BATCH_SIZE = 16
     LEARNING_RATE = 1e-3
+    
     # Load precomputed features
     text_features = np.load('features/text_features.npy')
     image_features = np.load('features/image_features.npy')
@@ -93,7 +95,6 @@ def main(args):
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
 
-    # Initialize model, optimizer, etc.
     # --- Handle Class Imbalance with Class Weights ---
     # Count the occurrences of each class in the full dataset
     class_counts = np.bincount(labels)
@@ -103,6 +104,7 @@ def main(args):
     class_weights = class_weights.to(device)
     print(f"Using class weights to handle imbalance: {class_weights.cpu().numpy()}")
 
+    # Initialize model, optimizer, etc.
     input_dim = all_features.shape[1]
     model = FusionMLP(input_dim=input_dim).to(device)
     optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
@@ -178,7 +180,6 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_save_path', type=str, default='models/fusion_model.bin', help='Path to save the trained fusion model.')
-    # Add the missing argument for the figures path
     parser.add_argument('--figures_save_path', type=str, default='figures/', help='Directory to save the training history plot.')
     args = parser.parse_args()
     main(args)
