@@ -108,7 +108,7 @@ def main(args):
     optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
     # Pass the calculated weights to the loss function
     criterion = nn.CrossEntropyLoss(weight=class_weights)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=3, factor=0.5, verbose=True)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=3, factor=0.5)
 
     best_val_loss = float('inf')
     history = {'train_loss': [], 'val_loss': [], 'train_acc': [], 'val_acc': []}
