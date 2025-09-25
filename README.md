@@ -1,11 +1,10 @@
 # Multimodal Hate Speech Detection
 
 This project aims to detect hate speech from text, images (memes), and auxiliary cues like sarcasm and emotion using a multimodal fusion model.
-
 The system is designed to be trainable on a Colab GPU and runnable for inference on a standard CPU.
 
-
-
+> **Note:** The main branch of this repository does not contain the large dataset files to stay within GitHub's limits. The training scripts assume you have downloaded the data as described in the Setup section.
+ 
 ## 📂 Project Structure
 
 ```
