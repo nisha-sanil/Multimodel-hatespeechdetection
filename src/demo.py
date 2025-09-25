@@ -6,10 +6,10 @@ import joblib
 from PIL import Image
 import os
 
-from utils import get_device
-from precompute_features import get_text_embeddings, get_image_embeddings, get_aux_scores
-from fusion_train import FusionMLP, TEXT_DIM, IMG_DIM, SARCASM_DIM, EMOTION_DIM
-from utils import TextDataset
+from .utils import get_device
+from .precompute_features import get_text_embeddings, get_image_embeddings, get_aux_scores
+from .fusion_train import FusionMLP, TEXT_DIM, IMG_DIM, SARCASM_DIM, EMOTION_DIM
+from .utils import TextDataset
 
 from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
 from torchvision.models import resnet50, ResNet50_Weights

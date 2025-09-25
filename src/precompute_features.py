@@ -1,7 +1,7 @@
 import torch
 import torchvision.transforms as transforms
 from torchvision.models import resnet50, ResNet50_Weights
-from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
+from transformers import RobertaTokenizer, RobertaForSequenceClassification
 from PIL import Image
 import pandas as pd
 import numpy as np
@@ -10,8 +10,8 @@ import joblib
 import os
 import argparse
 
-from fusion_train import EMOTION_DIM
-from utils import get_device, load_hateful_memes_data
+from .fusion_train import EMOTION_DIM
+from .utils import get_device, load_hateful_memes_data
 
 def get_text_embeddings(texts, model, tokenizer, device, max_len=128):
     """Extract [CLS] token embeddings from DistilBERT."""
@@ -105,8 +105,8 @@ def main(args):
     # --- 1. Text Features ---
     print("Loading text model...")
     try:
-        text_tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-        text_model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=2)
+        text_tokenizer = RobertaTokenizer.from_pretrained('roberta-base') # <-- Use RoBERTa Tokenizer
+        text_model = RobertaForSequenceClassification.from_pretrained('roberta-base', num_labels=2) # <-- Use RoBERTa Model
         text_model.load_state_dict(torch.load(args.text_model_path, map_location=device))
         text_model.to(device)
     except FileNotFoundError:

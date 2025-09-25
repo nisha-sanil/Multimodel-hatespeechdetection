@@ -5,8 +5,7 @@ import matplotlib.pyplot as plt
 import os
 import argparse
 from tqdm import tqdm
-
-from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
+from transformers import RobertaTokenizer, RobertaForSequenceClassification
 from torch.utils.data import DataLoader
 
 # Assuming fusion_train.py is in the same src directory
@@ -82,13 +81,13 @@ def main(args):
 
     elif args.model_type == 'text':
         print("--- Evaluating Text-Only Model ---")
-        MODEL_NAME = 'distilbert-base-uncased'
+        MODEL_NAME = 'roberta-base' # <-- Upgrade to RoBERTa
         
         try:
-            model = DistilBertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2)
+            model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2) # <-- Use RoBERTa Model
             model.load_state_dict(torch.load(args.text_model_path, map_location=device))
             model.to(device)
-            tokenizer = DistilBertTokenizer.from_pretrained(MODEL_NAME)
+            tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME) # <-- Use RoBERTa Tokenizer
         except FileNotFoundError:
             print(f"Text model not found at {args.text_model_path}. Please run train_text.py first.")
             return

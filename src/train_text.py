@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import DataLoader, random_split
-from transformers import DistilBertTokenizer, DistilBertForSequenceClassification, get_linear_schedule_with_warmup
+from transformers import RobertaTokenizer, RobertaForSequenceClassification, get_linear_schedule_with_warmup
 from torch.optim import AdamW
 from sklearn.metrics import accuracy_score, f1_score
 import numpy as np
@@ -73,7 +73,7 @@ def main(args):
     print(f"Using device: {device}")
 
     # Config
-    MODEL_NAME = 'distilbert-base-uncased'
+    MODEL_NAME = 'roberta-base' # <-- Upgrade to RoBERTa
     MAX_LEN = 128
     BATCH_SIZE = 16 if device.type == 'cuda' else 4
     EPOCHS = 3
@@ -82,7 +82,7 @@ def main(args):
     # Load data and tokenizer
     print(f"Loading data from {args.data_path}")
     df = load_olid_data(args.data_path)
-    tokenizer = DistilBertTokenizer.from_pretrained(MODEL_NAME)
+    tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME) # <-- Use RoBERTa Tokenizer
     
     dataset = TextDataset(
         texts=df.tweet.to_numpy(),
@@ -98,7 +98,7 @@ def main(args):
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
 
-    model = DistilBertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2)
+    model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2) # <-- Use RoBERTa Model
     model = model.to(device)
 
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)

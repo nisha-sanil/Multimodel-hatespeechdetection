@@ -165,6 +165,12 @@ def main(args):
             os.makedirs(os.path.dirname(args.model_save_path), exist_ok=True)
             torch.save(model.state_dict(), args.model_save_path)
             print(f"Best model saved to {args.model_save_path}")
+            early_stopping_counter = 0  # Reset counter on improvement
+        else:
+            early_stopping_counter += 1
+            if early_stopping_counter >= early_stopping_patience:
+                print(f"Early stopping triggered after {epoch+1} epochs.")
+                break
 
     # Use the provided path to save the plot
     plot_history(history, save_path=args.figures_save_path)
