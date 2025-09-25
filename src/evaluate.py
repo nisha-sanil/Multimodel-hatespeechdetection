@@ -9,11 +9,12 @@ from tqdm import tqdm
 from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
 from torch.utils.data import DataLoader
 
+# Assuming fusion_train.py is in the same src directory
 from fusion_train import FusionMLP
 from utils import set_seed, get_device, load_olid_data, TextDataset
 
-def evaluate_fusion_model(model, features, labels, device):
-    """Evaluate a given fusion model on a set of features and labels."""
+def evaluate_fusion_model(model, features, device):
+    """Evaluate a given fusion model on a set of features."""
     model.to(device)
     model.eval()
     
@@ -27,7 +28,7 @@ def evaluate_fusion_model(model, features, labels, device):
 
 def evaluate_text_model(model, data_loader, device):
     """Evaluate a text classification model."""
-    model = model.eval()
+    model.eval()
     predictions = []
     actual_labels = []
     with torch.no_grad():
@@ -75,8 +76,8 @@ def main(args):
             print(f"Fusion model not found at {args.fusion_model_path}. Please run fusion_train.py first.")
             return
 
-        predictions = evaluate_fusion_model(model, full_features, labels, device)
-        cm_path = 'figures/confusion_matrix_fusion.png'
+        predictions = evaluate_fusion_model(model, full_features, device)
+        cm_path = os.path.join(args.figures_save_path, 'confusion_matrix_fusion.png')
         model_title = 'Full Multimodal Model'
 
     elif args.model_type == 'text':
@@ -104,7 +105,7 @@ def main(args):
         data_loader = DataLoader(dataset, batch_size=16)
 
         predictions, labels = evaluate_text_model(model, data_loader, device)
-        cm_path = 'figures/confusion_matrix_text_only.png'
+        cm_path = os.path.join(args.figures_save_path, 'confusion_matrix_text_only.png')
         model_title = 'Text-Only Model'
     
     else:
@@ -113,7 +114,7 @@ def main(args):
 
     # --- Generate and Save Report ---
     print(f"\nClassification Report ({model_title}):")
-    print(classification_report(labels, predictions, target_names=['NOT HATE', 'HATE']))
+    print(classification_report(labels, predictions, target_names=['NOT HATE', 'HATE'], zero_division=0))
     
     # --- Generate and Save Confusion Matrix ---
     cm = confusion_matrix(labels, predictions)
@@ -123,7 +124,7 @@ def main(args):
     disp.plot(ax=ax, cmap='Blues')
     plt.title(f'Confusion Matrix ({model_title})')
     
-    os.makedirs('figures', exist_ok=True)
+    os.makedirs(args.figures_save_path, exist_ok=True)
     plt.savefig(cm_path)
     print(f"Confusion matrix saved to {cm_path}")
 
@@ -133,5 +134,6 @@ if __name__ == '__main__':
     parser.add_argument('--data_path', type=str, default='data/olid-training-v1.0.tsv', help='Path to the evaluation data file (used for text model evaluation).')
     parser.add_argument('--text_model_path', type=str, default='models/text_model.bin', help='Path to the text model file.')
     parser.add_argument('--fusion_model_path', type=str, default='models/fusion_model.bin', help='Path to the fusion model file.')
+    parser.add_argument('--figures_save_path', type=str, default='figures/', help='Directory to save the confusion matrix plot.')
     args = parser.parse_args()
     main(args)
