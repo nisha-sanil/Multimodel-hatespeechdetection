@@ -8,6 +8,7 @@ import joblib
 import os
 import argparse
 
+# Assuming utils.py is in the same directory or accessible in the path
 from utils import set_seed, load_sarcasm_data, load_emotion_data
 
 def train_classifier(df, text_col, label_col, model_path):
@@ -41,7 +42,7 @@ def main(args):
     # --- Sarcasm Model ---
     print(f"Loading sarcasm data from {args.sarcasm_path}")
     sarcasm_df = load_sarcasm_data(args.sarcasm_path)
-    # Ensure the text column is string type
+    # Ensure the text column is string type to prevent errors
     sarcasm_df['tweet'] = sarcasm_df['tweet'].astype(str)
     train_classifier(
         df=sarcasm_df,
@@ -53,6 +54,7 @@ def main(args):
     # --- Emotion Model ---
     print(f"Loading emotion data from {args.emotion_path}")
     emotion_df = load_emotion_data(args.emotion_path)
+    # Ensure the text column is string type
     emotion_df['text'] = emotion_df['text'].astype(str)
     train_classifier(
         df=emotion_df,
