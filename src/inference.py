@@ -73,15 +73,15 @@ def predict(text, image_path, models, device, mode='fusion'):
 
     elif mode == 'fusion':
         # --- Multimodal Fusion Prediction ---
-        # Use a placeholder for text if it's empty to avoid errors
-        text_to_process = text if text and text.strip() else "[CLS]"
+        # Use a placeholder for text if it's empty or whitespace to avoid errors
+        text_to_process = text if text and text.strip() else "[PAD]"
 
         text_feat = get_text_embeddings([text_to_process], text_model, text_tokenizer, device)
         
         if image_path and os.path.exists(image_path):
             image_feat = get_image_embeddings([image_path], img_model, img_transform, device)
         else:
-            # Use a zero vector if no image is provided
+            # Use a zero vector if no image is provided or path is invalid
             image_feat = np.zeros((1, IMG_DIM))
 
         sarcasm_feat, emotion_feat = get_aux_scores([text_to_process], sarcasm_model, emotion_model)

@@ -11,7 +11,7 @@ import argparse
 from utils import set_seed, get_device
 
 # --- Feature Dimension Constants ---
-TEXT_DIM = 768  # DistilBERT base model's hidden size
+TEXT_DIM = 768  # RoBERTa-base and DistilBERT-base model's hidden size
 IMG_DIM = 2048  # ResNet50's final avgpool layer output size
 SARCASM_DIM = 1   # A single probability score
 EMOTION_DIM = 28  # GoEmotions has 28 classes

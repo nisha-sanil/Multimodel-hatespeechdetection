@@ -14,7 +14,7 @@ from .fusion_train import EMOTION_DIM
 from .utils import get_device, load_hateful_memes_data
 
 def get_text_embeddings(texts, model, tokenizer, device, max_len=128):
-    """Extract [CLS] token embeddings from DistilBERT."""
+    """Extract [CLS] token embeddings from a transformer model."""
     model.eval()
     embeddings = []
     with torch.no_grad():
@@ -55,14 +55,14 @@ def get_image_embeddings(image_paths, model, transform, device):
             if not os.path.exists(img_path):
                 print(f"Warning: Image not found at {img_path}. Using zero vector.")
                 # Using a zero vector as a placeholder
-                embeddings.append(np.zeros((1, 2048)))
+                embeddings.append(np.zeros((2048,)))
                 continue
             
             try:
                 image = Image.open(img_path).convert('RGB')
                 image = transform(image).unsqueeze(0).to(device)
                 _ = model(image)
-                img_embedding = features['avgpool'].squeeze(0).cpu().numpy().reshape(1, -1)
+                img_embedding = features['avgpool'].squeeze().cpu().numpy()
                 embeddings.append(img_embedding)
             except Exception as e:
                 print(f"Warning: Could not process image {img_path}. Error: {e}. Using zero vector.")

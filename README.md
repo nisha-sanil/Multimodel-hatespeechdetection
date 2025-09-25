@@ -16,7 +16,7 @@ The system is designed to be trainable on a Colab GPU and runnable for inference
 │   ├── hateful_memes_sample.csv # Hateful memes data (text + image paths)
 │   └── img/                    # Directory for meme images (e.g., 01234.png)
 ├── src/
-│   ├── train_text.py           # Fine-tunes DistilBERT on OLID
+│   ├── train_text.py           # Fine-tunes RoBERTa on OLID
 │   ├── train_aux.py            # Trains sarcasm & emotion classifiers
 │   ├── precompute_features.py  # Extracts and caches all features
 │   ├── fusion_train.py         # Trains the final fusion MLP
@@ -62,7 +62,7 @@ The system is designed to be trainable on a Colab GPU and runnable for inference
 Execute the scripts in the following order. The models and features will be saved automatically to the `models/` and `features/` directories.
 
 1.  **Train Text Model:**
-    Fine-tune DistilBERT for hate speech classification on the text dataset.
+    Fine-tune RoBERTa for hate speech classification on the text dataset.
     (Using the full OLID dataset)
     ```bash
     python src/train_text.py --data_path data/olid-training-v1.0.tsv

@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader, random_split
 from transformers import RobertaTokenizer, RobertaForSequenceClassification, get_linear_schedule_with_warmup
 from torch.optim import AdamW
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import f1_score
 import numpy as np
 from tqdm import tqdm
 import os
@@ -11,7 +11,7 @@ import argparse
 from utils import set_seed, get_device, load_olid_data, TextDataset
 
 
-def train_epoch(model, data_loader, loss_fn, optimizer, device, scheduler, n_examples):
+def train_epoch(model, data_loader, optimizer, device, scheduler, n_examples):
     model = model.train()
     losses = []
     correct_predictions = 0
@@ -42,10 +42,12 @@ def train_epoch(model, data_loader, loss_fn, optimizer, device, scheduler, n_exa
 
     return correct_predictions.item() / n_examples, np.mean(losses)
 
-def eval_model(model, data_loader, loss_fn, device, n_examples):
+def eval_model(model, data_loader, device, n_examples):
     model = model.eval()
     losses = []
-    correct_predictions = 0
+    
+    all_preds = []
+    all_labels = []
 
     with torch.no_grad():
         for d in tqdm(data_loader, desc="Evaluating"):
@@ -61,11 +63,16 @@ def eval_model(model, data_loader, loss_fn, device, n_examples):
             loss = outputs.loss
             logits = outputs.logits
 
-            _, preds = torch.max(logits, dim=1)
-            correct_predictions += torch.sum(preds == labels)
+            preds = torch.argmax(logits, dim=1)
+            
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
             losses.append(loss.item())
 
-    return correct_predictions.item() / n_examples, np.mean(losses)
+    accuracy = np.sum(np.array(all_preds) == np.array(all_labels)) / n_examples
+    f1 = f1_score(all_labels, all_preds, average='macro')
+
+    return accuracy, np.mean(losses), f1
 
 def main(args):
     set_seed()
@@ -104,22 +111,21 @@ def main(args):
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
     total_steps = len(train_loader) * EPOCHS
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=total_steps)
-    loss_fn = torch.nn.CrossEntropyLoss().to(device)
 
-    best_val_loss = float('inf')
+    best_val_f1 = -1.0 # Track best F1 score instead of loss
     early_stopping_patience = 2
     early_stopping_counter = 0
 
     for epoch in range(EPOCHS):
         print(f'Epoch {epoch + 1}/{EPOCHS}')
-        train_acc, train_loss = train_epoch(model, train_loader, loss_fn, optimizer, device, scheduler, len(train_dataset))
+        train_acc, train_loss = train_epoch(model, train_loader, optimizer, device, scheduler, len(train_dataset))
         print(f'Train loss {train_loss:.4f} accuracy {train_acc:.4f}')
 
-        val_acc, val_loss = eval_model(model, val_loader, loss_fn, device, len(val_dataset))
-        print(f'Val loss {val_loss:.4f} accuracy {val_acc:.4f}')
+        val_acc, val_loss, val_f1 = eval_model(model, val_loader, device, len(val_dataset))
+        print(f'Val loss {val_loss:.4f} accuracy {val_acc:.4f} F1-score {val_f1:.4f}')
 
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        if val_f1 > best_val_f1:
+            best_val_f1 = val_f1
             os.makedirs(os.path.dirname(args.model_save_path), exist_ok=True)
             torch.save(model.state_dict(), args.model_save_path)
             print(f"Best model saved to {args.model_save_path}")

@@ -10,11 +10,6 @@ import argparse
 
 from utils import set_seed, load_sarcasm_data, load_emotion_data
 
-def predict_aux_model(pipeline, texts):
-    """Make predictions using a trained auxiliary model pipeline."""
-    predictions = pipeline.predict(texts)
-    return predictions
-
 def train_classifier(df, text_col, label_col, model_path):
     """Train a simple text classifier and save it."""
     set_seed()
@@ -32,7 +27,7 @@ def train_classifier(df, text_col, label_col, model_path):
     pipeline.fit(X_train, y_train)
 
     # Evaluate
-    y_pred = predict_aux_model(pipeline, X_test)
+    y_pred = pipeline.predict(X_test)
     print(f"Evaluation for {os.path.basename(model_path)}:")
     print(classification_report(y_test, y_pred, zero_division=0))
 

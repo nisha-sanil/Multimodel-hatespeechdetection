@@ -2,7 +2,6 @@ import torch
 import random
 import numpy as np
 import pandas as pd
-from transformers import DistilBertTokenizer
 from torch.utils.data import Dataset
 
 def set_seed(seed_value=42):

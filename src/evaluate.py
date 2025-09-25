@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from fusion_train import FusionMLP
 from utils import set_seed, get_device, load_olid_data, TextDataset
 
-def evaluate_fusion_model(model, features, device):
+def evaluate_fusion_model(model, features, device, batch_size=32):
     """Evaluate a given fusion model on a set of features."""
     model.to(device)
     model.eval()
@@ -20,10 +20,15 @@ def evaluate_fusion_model(model, features, device):
     features_tensor = torch.tensor(features, dtype=torch.float32).to(device)
     
     with torch.no_grad():
-        outputs = model(features_tensor)
-        _, predictions = torch.max(outputs, 1)
+        # Process in batches to avoid out-of-memory errors on large datasets
+        all_predictions = []
+        for i in range(0, len(features_tensor), batch_size):
+            batch_features = features_tensor[i:i+batch_size]
+            outputs = model(batch_features)
+            _, predictions = torch.max(outputs, 1)
+            all_predictions.extend(predictions.cpu().numpy())
     
-    return predictions.cpu().numpy()
+    return np.array(all_predictions)
 
 def evaluate_text_model(model, data_loader, device):
     """Evaluate a text classification model."""
@@ -84,12 +89,12 @@ def main(args):
         MODEL_NAME = 'roberta-base' # <-- Upgrade to RoBERTa
         
         try:
+            tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME) # <-- Use RoBERTa Tokenizer
             model = RobertaForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2) # <-- Use RoBERTa Model
             model.load_state_dict(torch.load(args.text_model_path, map_location=device))
             model.to(device)
-            tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME) # <-- Use RoBERTa Tokenizer
         except FileNotFoundError:
-            print(f"Text model not found at {args.text_model_path}. Please run train_text.py first.")
+            print(f"Model file not found at {args.text_model_path} or tokenizer files for {MODEL_NAME} are missing. Please ensure models are trained and paths are correct.")
             return
 
         print(f"Loading evaluation data from {args.data_path}")

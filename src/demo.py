@@ -72,7 +72,7 @@ def predict(text, image_path, models, device, mode='fusion'):
         else:
             if image_path:
                 print(f"Warning: Image path '{image_path}' not found. Using zero vector for image features.")
-            image_feat = np.zeros((1, 2048)) # ResNet50 feature size
+            image_feat = np.zeros((1, IMG_DIM))
 
         sarcasm_feat, emotion_feat = get_aux_scores([text], sarcasm_model, emotion_model)
 
